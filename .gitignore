@@ -1,0 +1,5 @@
+.idea
+DataProvider.GitLab/bin
+DataProvider.GitLab/obj
+DataProvider.GitLab/.DS_Store
+.DS_Store
