@@ -34,9 +34,6 @@ namespace DataProvider.GitLab.Controllers
         [Route("gitlab-hook")]
         public async Task<IActionResult> GitlabHook([FromBody] GitLabPushEventRequestModel requestModel)
         {
-            Console.WriteLine($"GitLab webhook received at - {DateTime.Now.ToString()}");
-            Console.WriteLine($"Authorized: {User.Identity.IsAuthenticated} - As: {User.FindFirst(c => c.Type == ClaimTypes.Name)?.Value}");
-           
             var accessToken = await HttpContext.GetTokenAsync("access_token");
             
             // Start own thread to handle the received push event

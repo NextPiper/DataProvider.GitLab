@@ -24,10 +24,11 @@ namespace DataProvider.GitLab.Managers.RabbitMQManager
 
         public async Task InitClient()
         {
+            Console.WriteLine("Initialising RabbitMQ_Manager");
             // Fetch rabbitMQ client details from the controlplane
             var httpClient = new HttpClient();
             var url = $"http://nextpipe-service.default.svc.cluster.local:5555/core/config/rabbitmq?loadBalancer=false";
-
+            Console.WriteLine("Fetching rabbitMQ config");
             var result = await httpClient.GetAsync(url);
 
             if (!result.IsSuccessStatusCode)
@@ -37,11 +38,13 @@ namespace DataProvider.GitLab.Managers.RabbitMQManager
             
             var content = await result.Content.ReadAsStringAsync();
             config = JsonConvert.DeserializeObject<RabbitMQConfig>(content);
+            Console.WriteLine("RabbitMQ Config successfully fetched");
         }
 
         public async Task PublishMessageAsync<TMessage>(TMessage message)
         {
             // if ready, then publish the msg to rabbitMQ...
+            Console.WriteLine("Publishing TMessage async using rabbitMQ connectionFactory");
             try
             {
                 var connectionFactory = new ConnectionFactory

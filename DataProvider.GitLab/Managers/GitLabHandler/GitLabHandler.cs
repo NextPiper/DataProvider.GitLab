@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Net.Http;
 using System.Net.Http.Headers;
@@ -24,11 +25,12 @@ namespace DataProvider.GitLab.Managers.GitLabHandler
         public GitLabHandler(IRabbitMQManager rabbitMqManager)
         {
             _rabbitMqManager = rabbitMqManager;
-            _rabbitMqManager.InitClient();
         }
         
         public async Task Handle_PushEvent(GitLabPushEventRequestModel @event, string accessToken)
         {
+            // Initialize rabbitMQClient
+            await _rabbitMqManager.InitClient();
             var prepareDownload = new HashSet<string>();
 
             foreach (var commit in @event.commits)
@@ -50,20 +52,26 @@ namespace DataProvider.GitLab.Managers.GitLabHandler
                 }
             }
             
+            Console.WriteLine($"Preparing to download {prepareDownload.Count} files");
+            
             // Modified and added files
             var list = new List<GitLabFile>();
             
             var httpClient = new HttpClient();
-            httpClient.DefaultRequestHeaders.Authorization =
-                new AuthenticationHeaderValue("Bearer", accessToken);
+            /*httpClient.DefaultRequestHeaders.Authorization =
+                new AuthenticationHeaderValue("Bearer", accessToken);*/
+
+            Console.WriteLine($"httpClient prepared - Starting download of files {list.Count}/{prepareDownload.Count}");
             
             // fetch all modified and added files
             foreach (var fileToDownload in prepareDownload)
             {
                 var urlEncoded = HttpUtility.UrlEncode(fileToDownload);
-
+                
                 var url =
                     $"{GITLAB_PROJECT_URL}{@event.project_id}/repository/files/{urlEncoded}/?ref={@event.@ref}";
+                
+                Console.WriteLine($"Downloading: {fileToDownload} with url: {url} - {list.Count}/{prepareDownload.Count}");
                 
                 // Fetch the file
                 var result = await httpClient.GetAsync(
@@ -74,7 +82,21 @@ namespace DataProvider.GitLab.Managers.GitLabHandler
                     var content = await result.Content.ReadAsStringAsync();
                     var file = JsonConvert.DeserializeObject<GitLabFile>(content);
                     list.Add(file);
+                    Console.WriteLine($"File: {fileToDownload} successfully downloaded - {list.Count}/{prepareDownload.Count}");
                 }
+                else
+                {
+                    var content = await result.Content.ReadAsStringAsync();
+                    Console.WriteLine($"Failed to download {fileToDownload} - {list.Count}/{prepareDownload.Count} - Error Msg: {result.ReasonPhrase} - Description: {content}");
+                }
+            }
+            
+            Console.WriteLine("Commit successfully downloaded - Publishing GitLabCommitV1 message async");
+
+            if (list.Count == 0)
+            {
+                Console.WriteLine("No files where downloaded do not send commit msg");
+                return;
             }
             
             // Send message with rabbitMQ manager
